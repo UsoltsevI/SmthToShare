@@ -60,14 +60,7 @@ void delete_table(struct table* tbl) {
 }
 
 size_t get_hash(struct table* tbl, int val) {
-    size_t res = 0;
-
-    while (val != 0) {
-        res += (val % 10) * COEF2;
-        val /= 10;
-    }
-
-    return res % tbl->size;
+    return val % tbl->size;
 }
 
 void print_list(const struct list* lst) {
@@ -93,6 +86,41 @@ void print_table(const struct table* tbl) {
     }
 
     printf("\n");
+}
+
+void node_to_head(struct list* lst, struct node* nd) {
+    nd->prev->next = nd->next;
+    nd->next->prev = nd->prev;
+
+    lst->tail->next = nd;
+    lst->head->prev = nd;
+
+    nd->next = lst->head;
+    nd->prev = lst->tail;
+    lst->head = nd;
+}
+
+void tail_to_head(struct list* lst, int val) {
+    lst->tail->val = val;
+    lst->tail = lst->tail->prev;
+    lst->head = lst->head->prev;
+}
+
+void tail_to_psn(struct table* tbl) {
+    size_t hasht = get_hash(tbl, tbl->lst.tail->val);
+
+    while (tbl->arr[hasht] != NULL) {
+        if (tbl->arr[hasht] != POISON && tbl->arr[hasht]->val == tbl->lst.tail->val) {
+            tbl->arr[hasht] = POISON;
+            break;
+        }
+
+        ++hasht;
+
+        if (hasht >= tbl->size) {
+            hasht = 0;
+        }
+    }
 }
 
 int cache(struct table *tbl, size_t val) {
@@ -133,26 +161,9 @@ int cache(struct table *tbl, size_t val) {
     }
 
     if (tbl->arr[hash] == NULL) {
-        {
-            size_t hasht = get_hash(tbl, tbl->lst.tail->val);
+        tail_to_psn(tbl);
 
-            while (tbl->arr[hasht] != NULL) {
-                if (tbl->arr[hasht] != POISON && tbl->arr[hasht]->val == tbl->lst.tail->val) {
-                    tbl->arr[hasht] = POISON;
-                    break;
-                }
-
-                ++hasht;
-
-                if (hasht >= tbl->size) {
-                    hasht = 0;
-                }
-            }
-        }
-
-        tbl->lst.tail->val = val;
-        tbl->lst.tail = tbl->lst.tail->prev;
-        tbl->lst.head = tbl->lst.head->prev;
+        tail_to_head(&tbl->lst, val);
 
         if (!is_psn) {
             fir_psn = hash;
@@ -165,24 +176,13 @@ int cache(struct table *tbl, size_t val) {
 
     // assert(cur->val == val);
     if (cur == tbl->lst.tail) {
-        tbl->lst.tail->val = val;
-        tbl->lst.tail = tbl->lst.tail->prev;
-        tbl->lst.head = tbl->lst.head->prev;
+        tail_to_head(&tbl->lst, val);
 
         return 1;
     }
 
-    cur->prev->next = cur->next;
-    cur->next->prev = cur->prev;
+    node_to_head(&tbl->lst, cur);
 
-    tbl->lst.tail->next = cur;
-
-    tbl->lst.head->prev = cur;
-    cur->next = tbl->lst.head;
-    cur->prev = tbl->lst.tail;
-    tbl->lst.head = cur;
-
-    // printf("res == 1!\n");
     return 1;
 }
 
